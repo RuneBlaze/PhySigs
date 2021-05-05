@@ -1,5 +1,6 @@
+
 source("../src/phySigs.R")
-load("sims.RData")
+# load("sims.RData")
 
 library(graph)
 
@@ -20,10 +21,11 @@ parseTree <- function(filename, V) {
   return(tree)
 }
 
-#exp_list_sims <- list()
+exp_list_sims <- list()
 for (instance in instances) {
   if (!(instance %in% names(exp_list_sims))) {
     exp_list_sims[[instance]] <- list()
+
     print(instance)
     s <- unlist(strsplit(instance, "_"))
     treeFilename <- paste0(sim_path, s[[1]], "_", s[[2]], ".tree")

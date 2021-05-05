@@ -1,5 +1,7 @@
 library(deconstructSigs)
 library(graph)
+# library(hash)
+library(prettyprint)
 
 #sigs.input['CRUK0001:4',]+sigs.input['CRUK0001:5',]
 
@@ -12,7 +14,8 @@ normalizeFeatureMatrix <- function(feat_mat, norm_method) {
   return(feat_mat)
 }
 
-treeExposures <- function(tree, feat_mat, k, sigs_filter) {
+
+treeExposures <- function(best_edges, tree, feat_mat, k, sigs_filter) {
   V <- nodes(tree)
   E <- edgeMatrix(tree)
   E_list <- list()
@@ -26,12 +29,31 @@ treeExposures <- function(tree, feat_mat, k, sigs_filter) {
   best_CC <- NULL
   best_error <- Inf
   best_sample_exp <- NULL
+  bedges <- NULL
   for (idx in 1:dim(C)[2]) {
     cpy_tree <- tree
+    edges = list()
     if (k > 0) {
       for (i in 1:k) {
         edge <- C[i,idx][[1]]
+        # pp(edge)
+        # pp(edge[1])
+        # pp(edge[2])
+        # print("!")
+        edges[[length(edges)+1]] <- edge
+        # print(edges)
         cpy_tree <- removeEdge(V[edge[1]], V[edge[2]], cpy_tree)
+      }
+    }
+    # print(k)
+    if (k >= 3) {
+      a <- best_edges[[k]]
+      b <- best_edges[[k - 1]]
+      if (!(all(a %in% edges) || all(b %in% edges))) {
+        print("not good; skipping!")
+        next
+      } else {
+        # print("this is good")
       }
     }
     
@@ -50,6 +72,9 @@ treeExposures <- function(tree, feat_mat, k, sigs_filter) {
       row.names(feat_mat_CCC) <- paste(CCC,collapse=";")
       feat_mat_CCC <- as.data.frame(feat_mat_CCC)
       # print(dim(feat_mat_CCC))
+      # print("hello")
+      # print(h[[feat_mat_CCC]])
+      # flush.console()
       
       # Get exposure for sample
       sample_exp_CCC <- whichSignatures(tumor.ref = feat_mat_CCC, 
@@ -58,6 +83,10 @@ treeExposures <- function(tree, feat_mat, k, sigs_filter) {
                                         contexts.needed = TRUE,
                                         signature.cutoff = 0.0001,
                                         tri.counts.method = "default")
+      # print()
+      # print(h$feat_mat_CCC)
+      # print("!!!")
+      # h$feat_mat_CCC <- 1
       
       # Add any unknown signatures
       sample_exp_CCC$weights$Signature.unknown <- sample_exp_CCC[["unknown"]]
@@ -71,11 +100,18 @@ treeExposures <- function(tree, feat_mat, k, sigs_filter) {
       best_error <- error
       best_CC <- CC
       best_sample_exp <- sample_exp
+      bedges <- edges
+      # bedges
+
     }
   }
-  
+  # pp(lengths(best_edges))
+  # best_edges[[k + 1]] <- bedges
+  # pp(lengths(best_edges))
+  # pp(best_edges)
+  # pp()
   print(paste("k:", k, "; error:", best_error))
-  return(best_sample_exp)
+  return(list(first=bedges, second=best_sample_exp))
 }
 
 getError <- function(feat_mat, exp_mat, sigs_filter) {
@@ -116,8 +152,14 @@ expand <- function(exp_mat) {
 
 allTreeExposures <- function(tree, feat_mat, sigs_filter) {
   exp_list <- list()
+  best_edges <- list()
   nrEdges  <- length(nodes(tree)) - 1
-  for (k in 0:nrEdges) { exp_list[[as.character(k)]] <- treeExposures(tree, feat_mat, k, sigs_filter) }
+  for (k in 0:nrEdges) { 
+    r <- treeExposures(best_edges, tree, feat_mat, k, sigs_filter)
+    best_edges[[k+1]] <- r$first
+    exp_list[[as.character(k)]] <- r$second
+    pp(lengths(best_edges))
+  }
   return(exp_list)
 }
 
